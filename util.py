@@ -36,7 +36,7 @@ def dec_print_train(pred, cap_len, label, idx2word, batch_size, id_batch):
 
     pre = list(map(lambda x: idx2word[x], pred[i][0:eos_pred]))
     lab = list(map(lambda x: idx2word[x], label[i][0:eos]))
-    print(color('\nid: ' + str(id_batch[i]) + '\nanswer: ' + str(lab) + '\nprediction: ' + str(pre), fg='yellow'))
+    print('\nid: ' + str(id_batch[i]) + '\nanswer: ' + str(lab) + '\nprediction: ' + str(pre))
 
 
 def dec_print_val(pred, cap_len, label, idx2word, batch_size, id_batch):
@@ -57,7 +57,7 @@ def dec_print_val(pred, cap_len, label, idx2word, batch_size, id_batch):
         seq.append(sen)
         if i in print_me:
             # only print the "print_me"
-            print(color('\nid: ' + str(myid) + '\nanswer: ' + str(lab) + '\nprediction: ' + str(pre), fg='green'))
+            print('\nid: ' + str(myid) + '\nanswer: ' + str(lab) + '\nprediction: ' + str(pre))
 
     return seq
 
@@ -71,7 +71,7 @@ def dec_print_test(pred, idx2word, batch_size, id_batch):
                 eos_pred = j
                 break
         pre = list(map(lambda x: idx2word[x], pred[i][0:eos_pred]))
-        print(color('\nid: ' + str(id_batch[i]) + '\nlen: ' + str(eos_pred) + '\nprediction: ' + str(pre), fg='green'))
+        print('\nid: ' + str(id_batch[i]) + '\nlen: ' + str(eos_pred) + '\nprediction: ' + str(pre))
         pre_no_eos = list(map(lambda x: idx2word[x], pred[i][0:eos_pred]))
         sen = ' '.join([w for w in pre_no_eos])
         seq.append(sen)
