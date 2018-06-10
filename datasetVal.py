@@ -35,6 +35,10 @@ class DatasetVal(DatasetBase):
         df = pd.read_json(corpus_path)
 
         for caption_list, vid in zip(df['caption'], df['id']):  # train_label is a list of caption-vid dicts
+            path = os.path.join(self.feat_dir, '{}.npy'.format(vid))
+            feat = np.load(path)
+            self.feat_dict[vid] = feat
+
             for caption in caption_list:  # a list of strings
                 if not all(ord(c) < 128 for c in caption):
                     continue  # abandon captions with unusual chars
