@@ -135,7 +135,7 @@ class S2VT:
         # bos = tf.ones([batch_size, n_hidden])
         padding_in = tf.zeros([batch_size, n_hidden])
 
-        logits = [tf.one_hot(tf.ones(shape=(batch_size,), dtype=tf.int32), depth=self.vocab_num)]
+        logits = []#[tf.one_hot(tf.ones(shape=(batch_size,), dtype=tf.int32), depth=self.vocab_num)]
 
         if self.with_attention:
             # v*tanh(w*[h_encs,h_dec])
