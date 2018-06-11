@@ -27,6 +27,8 @@ def linear_decay(num_epo):
 
 def dec_print_train(pred, cap_len, label, idx2word, batch_size, id_batch):
     i = np.random.randint(0, batch_size)
+    print(pred[i])
+    print(label[i])
     eos_pred = max_caption_len - 1
     eos = cap_len[i] - 1
     for j in range(0, max_caption_len):
