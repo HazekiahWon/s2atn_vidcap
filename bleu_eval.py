@@ -2,9 +2,10 @@ import math
 import operator
 import sys
 import json
+import os
 from functools import reduce
 
-path = '/home/data/MLDS_hw2_1_data/'
+path = r'D:\video_captioning\data\MLDS_hw2_data'
 
 
 def count_ngram(candidate, references, n):
@@ -109,7 +110,7 @@ def BLEU(s, t, flag=False):
 ### Usage: python bleu_eval.py caption.txt
 ### Ref : https://github.com/vikasnar/Bleu
 if __name__ == "__main__":
-    test = json.load(open(path + 'testing_label.json', 'r'))
+    test = json.load(open(os.path.join('testing_public_label.json'), 'r'))
     output = sys.argv[1]
     result = {}
     with open(output, 'r') as f:
