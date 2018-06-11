@@ -28,7 +28,7 @@ tf.set_random_seed(0)
 n_vgg = 4096
 n_hidden = 600
 # batch_size = 100
-val_batch_size = 100  # 100
+val_batch_size = 40  # 100
 n_frames = 80
 max_caption_len = 50
 forget_bias_red = 1.0
@@ -340,15 +340,18 @@ def train():
         for i in range(0, num_steps):
             data_batch, label_batch, caption_lens_batch, id_batch = datasetTrain.next_batch_()
             samp = datasetTrain.schedule_sampling(samp_prob[epo])
+
             if i % FLAGS.num_display_steps == 1:
-                # training 
-                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                # training
+                # print('model:display')
+                # run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 _, loss, p, summ = train_sess.run([train_op, loss_op, pred_word_indices, summary_op],
                                                   feed_dict={feat: data_batch,
                                                              captions: label_batch,
                                                              cap_len: caption_lens_batch,
                                                              sampling: samp},
-                                                  options=run_options)
+                                                  # options=run_options
+                                                  )
                 summary_writer.add_summary(summ, global_step=(epo * num_steps) + i)
                 print("\n[Train. Prediction] Epoch " + str(epo) + ", step " \
                       + str(i) + "/" + str(num_steps) + "......")
@@ -356,6 +359,7 @@ def train():
                                 datasetTrain.idx_to_word, FLAGS.batch_size, id_batch)
 
             else:
+                # print('model:', data_batch.shape)
                 _, loss, p = train_sess.run([train_op, loss_op, pred_word_indices],
                                             feed_dict={feat: data_batch,
                                                        captions: label_batch,
@@ -363,6 +367,7 @@ def train():
                                                        sampling: samp})
 
             epo_loss += loss
+            print('============================================================')
             print("Epoch " + str(epo) + ", step " + str(i) + "/" + str(num_steps) + \
                                  ", (Training Loss: " + "{:.4f}".format(loss) + \
                                  ", samp_prob: " + "{:.4f}".format(samp_prob[epo]) + ")")
@@ -418,8 +423,8 @@ def test():
     vocab_num = datasetTest.load_tokenizer()
 
     test_graph = tf.Graph()
-    gpu_config = tf.ConfigProto()
-    gpu_config.gpu_options.allow_growth = True
+    # gpu_config = tf.ConfigProto()
+    # gpu_config.gpu_options.allow_growth = True
 
     with test_graph.as_default():
         feat = tf.placeholder(tf.float32, [None, n_frames, n_vgg], name='video_features')

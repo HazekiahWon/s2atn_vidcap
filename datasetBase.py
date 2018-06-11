@@ -96,11 +96,14 @@ class DatasetBase:
             self.batch_index = self.batch_max_size - 1
 
         current_index = self.batch_index
+        idx = np.arange(current_index,current_index - self.batch_size,-1)
+        # print('datasetBase:', idx, self.batch_index)
         if indices is None:
-            dat_list = self.data_obj_list[current_index:current_index - self.batch_size:-1]
+            dat_list = self.data_obj_list[idx]
         else:
-            dat_list = self.data_obj_list[indices[current_index:current_index - self.batch_size:-1]]
+            dat_list = self.data_obj_list[indices[idx]]
         self.batch_index -= self.batch_size
+        self.batch_index %= self.batch_max_size
         # if current_index + self.batch_size <= max_size:
         #     dat_list = self.data_obj_list[self.perm[current_index:(current_index + self.batch_size)]]
         #     self.batch_index += self.batch_size
@@ -114,6 +117,7 @@ class DatasetBase:
         cap_batch = []
         id_batch = []
         cap_len = []
+
         for d in dat_list:
             img_batch.append(self.feat_dict[d.myid])
             id_batch.append(d.myid)
@@ -122,5 +126,6 @@ class DatasetBase:
             cap_batch.append(cap)
             cap_len.append(l)
         cap_batch = self.captions_to_padded_sequences(cap_batch)
+        # print('finish next batch')
 
         return np.array(img_batch), np.array(cap_batch), np.array(cap_len), np.array(id_batch)
