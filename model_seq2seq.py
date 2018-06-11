@@ -491,7 +491,7 @@ def main(_):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-lr', '--learning_rate', type=float, default=1e-3)
+    parser.add_argument('-lr', '--learning_rate', type=float, default=5e-4)
     parser.add_argument('-e', '--num_epoches', type=int, default=100)
     parser.add_argument('-b', '--batch_size', type=int, default=128)
     parser.add_argument('-t', '--test_mode', type=int, default=0)
