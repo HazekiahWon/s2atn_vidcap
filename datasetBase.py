@@ -58,8 +58,9 @@ class DatasetBase:
         # Tokenize
         token_list = re.split('\s+', caption)  # separate with blank spaces
 
-        # Add EOS
-        token_list.append(DatasetBase.MARKER_EOS)  # BOS?
+        # Add BOS,EOS
+        token_list.insert(0, DatasetBase.MARKER_BOS)
+        token_list.append(DatasetBase.MARKER_EOS)
 
         return token_list
 

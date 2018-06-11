@@ -109,10 +109,13 @@ class DatasetTrain(DatasetBase):
 
         # construct vocab
         self.word_freq_dict = defaultdict(int)
+        # for mk in self.marker:
+        #     self.word_freq_dict[mk] = 0
         # total_word_count = 0.0
         for caption_list in train_caption_list:
             for caption in caption_list:
                 for token in caption:
+                    if token in self.marker : continue
                     self.word_freq_dict[token] += 1
                     # total_word_count += 1.0
 
@@ -122,13 +125,14 @@ class DatasetTrain(DatasetBase):
             for caption in caption_list:
                 token_list = self.captionToTokenList(caption)
                 for token in token_list:
+                    if token in self.marker : continue
                     self.word_freq_dict[token] += 1
 
         # for word in self.word_freq_dict:
         #     self.word_freq_dict[word] /= np.sum(self.word_freq_dict.values())
         # return a new list of k-v tuples, sorted by the freq of word (the value), in the ascending order (reverse)
         # word_freq_list = sorted(iter(self.word_freq_dict.items()), key=lambda k_v: k_v[1], reverse=True)
-        self.idx_to_word = self.marker + list(self.word_freq_dict.keys())
+        self.idx_to_word = self.marker+list(self.word_freq_dict.keys())
         # self.word_index_dict = dict([(self.vocabulary[i], i) for i in range(len(self.vocabulary))])
         self.vocab_indices = {word: idx for idx, word in enumerate(self.idx_to_word)}
 
@@ -190,5 +194,5 @@ class DatasetTrain(DatasetBase):
 
 
 if __name__ == '__main__':
-    datasetTrain = DatasetTrain(r'D:\video_captioning\data\MLDS_hw2_data', 80)
+    datasetTrain = DatasetTrain(r'data', 80)
     datasetTrain.construct_samples()

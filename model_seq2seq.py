@@ -132,10 +132,10 @@ class S2VT:
 
         h_encs = tf.stack(h_encs, axis=0)
 
-        bos = tf.ones([batch_size, n_hidden])
+        # bos = tf.ones([batch_size, n_hidden])
         padding_in = tf.zeros([batch_size, n_hidden])
 
-        logits = []
+        logits = [tf.one_hot([1]*batch_size, depth=self.vocab_num)]
 
         if self.with_attention:
             # v*tanh(w*[h_encs,h_dec])
@@ -185,14 +185,15 @@ class S2VT:
                 red_h_state, red_hc_statetup = lstm_red(padding_in, red_hc_statetup)
 
             if t == 0:
-                with tf.variable_scope("LSTM2"):
-                    con = tf.concat([bos, red_h_state], axis=-1)
-                    if self.with_attention:
-                        C_i = bahdanau_attention(t)
-                        # C_i = luong_attention(i)
-                        con = tf.concat([con, C_i], axis=-1)
-
-                    gre_h_state, gre_hc_statetup = lstm_gre(con, gre_hc_statetup)
+                feed_in = tf.ones(shape=(batch_size,), dtype=tf.int32) # BOS
+                # with tf.variable_scope("LSTM2"):
+                #     con = tf.concat([bos, red_h_state], axis=-1)
+                #     if self.with_attention:
+                #         C_i = bahdanau_attention(t)
+                #         # C_i = luong_attention(i)
+                #         con = tf.concat([con, C_i], axis=-1)
+                #
+                #     gre_h_state, gre_hc_statetup = lstm_gre(con, gre_hc_statetup)
             else:
                 if phase == phases['train']:
                     if sampling[t] is True:
@@ -201,16 +202,17 @@ class S2VT:
                         feed_in = tf.argmax(logit_words, axis=1)  # largest word index
                 else:  # test
                     feed_in = tf.argmax(logit_words, 1)
-                with tf.device("/cpu:0"):
-                    # word embedding lookup
-                    embed_result = tf.nn.embedding_lookup(embeddings['emb'], feed_in)
-                with tf.variable_scope("LSTM2"):
-                    con = tf.concat([embed_result, red_h_state], axis=1)
-                    if self.with_attention:
-                        C_i = bahdanau_attention(t, gre_hc_statetup[1])  # (state_c, state_h)
-                        # C_i = luong_attention(i, state_gre[1])
-                        con = tf.concat([con, C_i], axis=1)
-                    gre_h_state, gre_hc_statetup = lstm_gre(con, gre_hc_statetup)
+
+            with tf.device("/cpu:0"):
+                # word embedding lookup
+                embed_result = tf.nn.embedding_lookup(embeddings['emb'], feed_in)
+            with tf.variable_scope("LSTM2"):
+                con = tf.concat([embed_result, red_h_state], axis=1)
+                if self.with_attention:
+                    C_i = bahdanau_attention(t, gre_hc_statetup[1])  # (state_c, state_h)
+                    # C_i = luong_attention(i, state_gre[1])
+                    con = tf.concat([con, C_i], axis=1)
+                gre_h_state, gre_hc_statetup = lstm_gre(con, gre_hc_statetup)
 
             logit_words = tf.matmul(gre_h_state, weights['W_dec']) + biases['b_dec']  # b,n_vocab
             logits.append(logit_words)
@@ -491,7 +493,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4)
     parser.add_argument('-e', '--num_epoches', type=int, default=100)
-    parser.add_argument('-b', '--batch_size', type=int, default=150)
+    parser.add_argument('-b', '--batch_size', type=int, default=1)
     parser.add_argument('-t', '--test_mode', type=int, default=0)
     parser.add_argument('-d', '--num_display_steps', type=int, default=15)
     parser.add_argument('-ns', '--num_saver_epoches', type=int, default=1)
