@@ -486,7 +486,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4)
     parser.add_argument('-e', '--num_epoches', type=int, default=100)
-    parser.add_argument('-b', '--batch_size', type=int, default=25)
+    parser.add_argument('-b', '--batch_size', type=int, default=150)
     parser.add_argument('-t', '--test_mode', type=int, default=0)
     parser.add_argument('-d', '--num_display_steps', type=int, default=15)
     parser.add_argument('-ns', '--num_saver_epoches', type=int, default=1)
@@ -496,7 +496,7 @@ if __name__ == '__main__':
     parser.add_argument('-lo', '--load_saver', type=int, default=0)
     parser.add_argument('-at', '--with_attention', type=int, default=1)
     parser.add_argument('--data_dir', type=str,
-                        default=r'D:\video_captioning\data\MLDS_hw2_data'
+                        default=r'data'
                         )
     parser.add_argument('--test_dir', type=str,
                         default='/home/data/MLDS_hw2_1_data/testing_data'

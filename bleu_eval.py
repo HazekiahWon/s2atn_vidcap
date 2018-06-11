@@ -1,11 +1,10 @@
 import math
 import operator
 import sys
+import pandas as pd
 import json
 import os
 from functools import reduce
-
-path = r'D:\video_captioning\data\MLDS_hw2_data'
 
 
 def count_ngram(candidate, references, n):
@@ -110,8 +109,9 @@ def BLEU(s, t, flag=False):
 ### Usage: python bleu_eval.py caption.txt
 ### Ref : https://github.com/vikasnar/Bleu
 if __name__ == "__main__":
-    test = json.load(open(os.path.join(path,'testing_public_label.json'), 'r'))
-    output = sys.argv[1]
+    # test = json.load(open(os.path.join(path,'testing_public_label.json'), 'r'))
+    df = pd.read_json(r'data/testing_public_label.json')
+    output = r'output.txt'#sys.argv[1]
     result = {}
     with open(output, 'r') as f:
         for line in f:
@@ -120,12 +120,15 @@ if __name__ == "__main__":
             test_id = line[:comma]
             caption = line[comma + 1:]
             result[test_id] = caption
+    # print(len(result))
+    # print(len(df['id']))
     # count by the method described in the paper https://aclanthology.info/pdf/P/P02/P02-1040.pdf
     bleu = []
-    for item in test:
+    for vid in result:
         score_per_video = []
-        captions = [x.rstrip('.') for x in item['caption']]
-        score_per_video.append(BLEU(result[item['id']], captions, True))
+
+        captions = [x.rstrip('.') for x in df['caption'][df['id']==vid].values[0]]
+        score_per_video.append(BLEU(result[vid], captions, True))
         bleu.append(score_per_video[0])
     average = sum(bleu) / len(bleu)
 
