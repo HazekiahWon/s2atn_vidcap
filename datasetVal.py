@@ -14,7 +14,7 @@ class DatasetVal(DatasetBase):
 
         super().__init__(data_dir, batch_size)
         self.feat_dir = os.path.join(self.data_dir, 'testing_data' + os.path.sep + 'feat')
-        self.json_filename = 'testing_label.json'
+        # self.json_filename = 'testing_label.json'
         self.corpus_dir = self.data_dir
 
     def load_tokenizer(self):
@@ -33,6 +33,9 @@ class DatasetVal(DatasetBase):
         corpus_path = os.path.join(self.corpus_dir, self.testing_label_filename)
 
         df = pd.read_json(corpus_path)
+        with open('val_ids.txt', 'w') as f:
+            f.write(corpus_path)
+            f.writelines(df['id'])
 
         for caption_list, vid in zip(df['caption'], df['id']):  # train_label is a list of caption-vid dicts
             path = os.path.join(self.feat_dir, '{}.npy'.format(vid))

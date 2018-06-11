@@ -83,6 +83,9 @@ class DatasetTrain(DatasetBase):
 
         df = pd.read_json(vid_captions_path)  # r'D:\video_captioning\data\MLDS_hw2_data\training_label.json')
 
+        with open('train_ids.txt', 'w') as f:
+            f.writelines(df['id'])
+
         train_caption_list = []  # a list of caption-list for each video
         for caption_list, vid in zip(df['caption'], df['id']):  # train_label is a list of caption-vid dicts
 
