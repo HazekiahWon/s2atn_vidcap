@@ -79,13 +79,7 @@ class DatasetBase:
 
         res = []
         for cap in captions:
-            l = []
-            for word in cap:
-                if word in self.word_freq_dict:
-                    l.append(self.vocab_indices[word])
-                else:
-                    l.append(special_tokens['<UNK>'])
-            l.append(special_tokens['<EOS>'])  # add EOS here!
+            l = [self.vocab_indices[word] for word in cap]
             pad = special_tokens['<PAD>']
             l += [pad] * (maxlen - len(l))
             res.append(l)
