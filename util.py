@@ -49,7 +49,7 @@ def dec_print_val(pred, cap_len, label, idx2word, batch_size, id_batch):
         eos = cap_len[i] - 1
         for j in range(0, max_caption_len):
             if pred[i][j] == special_tokens['<EOS>']:
-                eos_pred = j
+                eos_pred = j+1 # include EOS
                 break
         myid = id_batch[i]
         pre = list(map(lambda x: idx2word[x], pred[i][0:eos_pred]))

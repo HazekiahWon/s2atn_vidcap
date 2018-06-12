@@ -54,71 +54,76 @@ class S2VT:
         self.saver = saver
 
     def build_model(self, feat, captions=None, cap_len=None, sampling=None, phase=0):
+        with tf.variable_scope('trainable_vars'):
+            weights = {
+                'W_feat': tf.Variable(tf.random_uniform([n_vgg, n_hidden], -0.1, 0.1), name='W_feat'),
+                'W_dec': tf.Variable(tf.random_uniform([n_hidden, self.vocab_num], -0.1, 0.1), name='W_dec')
+            }
+            biases = {
+                'b_feat': tf.Variable(tf.zeros([n_hidden]), name='b_feat'),
+                'b_dec': tf.Variable(tf.zeros([self.vocab_num]), name='b_dec')
+            }
+            # ??
+            embeddings = {
+                'emb': tf.Variable(tf.random_uniform([self.vocab_num, n_hidden], -0.1, 0.1), name='emb')
+            }
 
-        weights = {
-            'W_feat': tf.Variable(tf.random_uniform([n_vgg, n_hidden], -0.1, 0.1), name='W_feat'),
-            'W_dec': tf.Variable(tf.random_uniform([n_hidden, self.vocab_num], -0.1, 0.1), name='W_dec')
-        }
-        biases = {
-            'b_feat': tf.Variable(tf.zeros([n_hidden]), name='b_feat'),
-            'b_dec': tf.Variable(tf.zeros([self.vocab_num]), name='b_dec')
-        }
-        # ??
-        embeddings = {
-            'emb': tf.Variable(tf.random_uniform([self.vocab_num, n_hidden], -0.1, 0.1), name='emb')
-        }
-
-        if self.with_attention:
-            print('wrapped with bahdanau_attention...')
-            # weights['w_enc_out'] =  tf.Variable(tf.random_uniform([n_hidden, n_hidden]),
-            #     dtype=tf.float32, name='w_enc_out')
-            # weights['w_dec_state'] =  tf.Variable(tf.random_uniform([n_hidden, n_hidden]),
-            #     dtype=tf.float32, name='w_dec_state')
-            weights['w_bah_atn'] = tf.Variable(tf.random_uniform([2 * n_hidden, n_hidden]),
-                                               dtype=tf.float32, name='w_bah_atn')
-            weights['v'] = tf.Variable(tf.random_uniform([n_hidden, 1]),
-                                       dtype=tf.float32, name='v')
-            weights['w_luong_atn'] = tf.Variable(tf.random_uniform([2 * n_hidden, n_hidden]),
-                                                 dtype=tf.float32, name='w_bah_atn')
+            if self.with_attention:
+                print('wrapped with bahdanau_attention...')
+                # weights['w_enc_out'] =  tf.Variable(tf.random_uniform([n_hidden, n_hidden]),
+                #     dtype=tf.float32, name='w_enc_out')
+                # weights['w_dec_state'] =  tf.Variable(tf.random_uniform([n_hidden, n_hidden]),
+                #     dtype=tf.float32, name='w_dec_state')
+                weights['w_bah_atn'] = tf.Variable(tf.random_uniform([2 * n_hidden, n_hidden]),
+                                                   dtype=tf.float32, name='w_bah_atn')
+                weights['v'] = tf.Variable(tf.random_uniform([n_hidden, 1]),
+                                           dtype=tf.float32, name='v')
+                weights['w_luong_atn'] = tf.Variable(tf.random_uniform([2 * n_hidden, n_hidden]),
+                                                     dtype=tf.float32, name='w_bah_atn')
 
         batch_size = tf.shape(feat)[0]
 
-        if phase != phases['test']:
-            # b,max_cap_len
-            cap_mask = tf.sequence_mask(cap_len, max_caption_len, dtype=tf.float32)
+        with tf.variable_scope('prep'):
+            if phase != phases['test']:
+                # b,max_cap_len
+                cap_mask = tf.sequence_mask(cap_len, max_caption_len, dtype=tf.float32)
 
-        if phase == phases['train']:  # add noise
-            noise = tf.random_uniform(tf.shape(feat), -0.1, 0.1, dtype=tf.float32)
-            feat = feat + noise  # TODO why noise
+            if phase == phases['train']:  # add noise
+                noise = tf.random_uniform(tf.shape(feat), -0.1, 0.1, dtype=tf.float32)
+                feat = tf.add(feat,noise,name='add_noise') # TODO why noise
 
-            # if phase == phases['train']:
-            feat = tf.nn.dropout(feat, dropout_prob)
-        # b,t,n_vgg -> b*t,n_vgg
-        feat = tf.reshape(feat, [-1, n_vgg])
-        # b*t,n_vgg -> b*t,n_frame_enc
-        image_emb = tf.matmul(feat, weights['W_feat']) + biases['b_feat']
-        # b*t,n_frame_enc -> b,t,n_frame_enc
-        image_emb = tf.reshape(image_emb, [-1, n_frames, n_hidden])
-        # b,t,n_frame_enc -> t,b,n_frame_enc
-        image_emb = tf.transpose(image_emb, perm=[1, 0, 2])
+                # if phase == phases['train']:
+                feat = tf.nn.dropout(feat, dropout_prob)
+
+        with tf.variable_scope('vid_fur_emb'):
+            # b,t,n_vgg -> b*t,n_vgg
+            feat = tf.reshape(feat, [-1, n_vgg])
+            # b*t,n_vgg -> b*t,n_frame_enc
+            image_emb = tf.matmul(feat, weights['W_feat']) + biases['b_feat']
+            # b*t,n_frame_enc -> b,t,n_frame_enc
+            image_emb = tf.reshape(image_emb, [-1, n_frames, n_hidden])
+            # b,t,n_frame_enc -> t,b,n_frame_enc
+            image_emb = tf.transpose(image_emb, perm=[1, 0, 2])
 
         with tf.variable_scope('LSTM1'):
             lstm_red = tf.nn.rnn_cell.BasicLSTMCell(n_hidden, forget_bias=forget_bias_red, state_is_tuple=True)
             if phase == phases['train']:
                 lstm_red = tf.contrib.rnn.DropoutWrapper(lstm_red, output_keep_prob=dropout_prob)
+            red_hc_statetup = lstm_red.zero_state(batch_size, dtype=tf.float32)
+
         with tf.variable_scope('LSTM2'):
             lstm_gre = tf.nn.rnn_cell.BasicLSTMCell(n_hidden, forget_bias=forget_bias_gre, state_is_tuple=True)
             if phase == phases['train']:
                 lstm_gre = tf.contrib.rnn.DropoutWrapper(lstm_gre, output_keep_prob=dropout_prob)
+            gre_hc_statetup = lstm_gre.zero_state(batch_size, dtype=tf.float32)
 
-        red_hc_statetup = lstm_red.zero_state(batch_size, dtype=tf.float32)
-        gre_hc_statetup = lstm_gre.zero_state(batch_size, dtype=tf.float32)
 
-        if self.with_attention:
-            # TODO why padding as such : prev_out + current_atn
-            padding = tf.zeros([batch_size, n_hidden + n_attention])
-        else:
-            padding = tf.zeros([batch_size, n_hidden])
+        with tf.variable_scope('prep'):
+            if self.with_attention:
+                # TODO why padding as such : prev_out + current_atn
+                padding = tf.zeros([batch_size, n_hidden + n_attention])
+            else:
+                padding = tf.zeros([batch_size, n_hidden])
 
         h_encs = []  # collect lstm2 outputs
         for t in range(0, n_frames):  # at each time t
@@ -131,9 +136,6 @@ class S2VT:
                 h_encs.append(gre_h_state)  # even though padding is augmented, output_gre/state_gre's shape not change
 
         h_encs = tf.stack(h_encs, axis=0)
-
-        # bos = tf.ones([batch_size, n_hidden])
-        padding_in = tf.zeros([batch_size, n_hidden])
 
         logits = []#[tf.one_hot(tf.ones(shape=(batch_size,), dtype=tf.int32), depth=self.vocab_num)]
 
@@ -176,75 +178,94 @@ class S2VT:
                 # b,n_hidden
                 # C_i = tf.reduce_sum(tf.multiply(H_s, score), axis=0)
                 C_i = tf.reduce_sum(tf.multiply(h_encs, score), axis=0)
-                return C_i
+                return C_i,score
 
         cross_ent_list = []
+        atn_ws = []
         for t in range(0, max_caption_len):
 
             with tf.variable_scope("LSTM1"):
+                # bos = tf.ones([batch_size, n_hidden])
+                padding_in = tf.zeros([batch_size, n_hidden])
                 red_h_state, red_hc_statetup = lstm_red(padding_in, red_hc_statetup)
 
-            if t == 0:
-                feed_in = tf.ones(shape=(batch_size,), dtype=tf.int32) # BOS
-                # with tf.variable_scope("LSTM2"):
-                #     con = tf.concat([bos, red_h_state], axis=-1)
-                #     if self.with_attention:
-                #         C_i = bahdanau_attention(t)
-                #         # C_i = luong_attention(i)
-                #         con = tf.concat([con, C_i], axis=-1)
-                #
-                #     gre_h_state, gre_hc_statetup = lstm_gre(con, gre_hc_statetup)
-            else:
-                if phase == phases['train']:
-                    if sampling[t] is True:
-                        feed_in = captions[:, t - 1]  # all batches at prev time
-                    else:
-                        feed_in = tf.argmax(logit_words, axis=1)  # largest word index
-                else:  # test
-                    feed_in = tf.argmax(logit_words, 1)
-
-            with tf.device("/cpu:0"):
-                # word embedding lookup
-                embed_result = tf.nn.embedding_lookup(embeddings['emb'], feed_in)
             with tf.variable_scope("LSTM2"):
+                if t == 0:
+                    feed_in = tf.ones(shape=(batch_size,), dtype=tf.int32) # BOS
+                    # with tf.variable_scope("LSTM2"):
+                    #     con = tf.concat([bos, red_h_state], axis=-1)
+                    #     if self.with_attention:
+                    #         C_i = bahdanau_attention(t)
+                    #         # C_i = luong_attention(i)
+                    #         con = tf.concat([con, C_i], axis=-1)
+                    #
+                    #     gre_h_state, gre_hc_statetup = lstm_gre(con, gre_hc_statetup)
+                else:
+                    if phase == phases['train']:
+                        if sampling[t] is True:
+                            feed_in = captions[:, t - 1]  # all batches at prev time
+                        else:
+                            feed_in = tf.argmax(logit_words, axis=1)  # largest word index
+                    else:  # test
+                        feed_in = tf.argmax(logit_words, 1)
+
+                with tf.device("/cpu:0"):
+                    # word embedding lookup
+                    embed_result = tf.nn.embedding_lookup(embeddings['emb'], feed_in)
+
                 con = tf.concat([embed_result, red_h_state], axis=1)
                 if self.with_attention:
-                    C_i = bahdanau_attention(t, gre_hc_statetup[1])  # (state_c, state_h)
+                    C_i,atn_w_at_t = bahdanau_attention(t, gre_hc_statetup[1])  # (state_c, state_h)
+                    atn_ws.append(atn_w_at_t) # t'*[t,b,1] -> t',t,b,1 ->(reduce_sum)->t,b,1->(-tau)->(reduce_sum)scalar
                     # C_i = luong_attention(i, state_gre[1])
                     con = tf.concat([con, C_i], axis=1)
                 gre_h_state, gre_hc_statetup = lstm_gre(con, gre_hc_statetup)
 
-            logit_words = tf.matmul(gre_h_state, weights['W_dec']) + biases['b_dec']  # b,n_vocab
-            logits.append(logit_words)
+            with tf.variable_scope('vocab_logits'):
+                logit_words = tf.matmul(gre_h_state, weights['W_dec']) + biases['b_dec']  # b,n_vocab
+                logits.append(logit_words)
 
+                if phase != phases['test']:
+                    labels = captions[:, t]
+                    # onehot for the t-th word
+                    one_hot_labels = tf.one_hot(labels, self.vocab_num, on_value=1, off_value=None, axis=1)
+                    # b,1
+                    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logit_words, labels=one_hot_labels)
+                    # at time t, which loss should be counted
+                    cross_entropy = cross_entropy * cap_mask[:, t]  # b,1
+                    cross_ent_list.append(cross_entropy)
+
+        with tf.variable_scope('loss'):
+            loss = 0.0
+            xent_loss = 0.
+            atn_loss = 0.
+            tau = 1./n_frames * max_caption_len *2 # expectation for each frame to be attended is 1/n_frames
             if phase != phases['test']:
-                labels = captions[:, t]
-                # onehot for the t-th word
-                one_hot_labels = tf.one_hot(labels, self.vocab_num, on_value=1, off_value=None, axis=1)
-                # b,1
-                cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logit_words, labels=one_hot_labels)
-                # at time t, which loss should be counted
-                cross_entropy = cross_entropy * cap_mask[:, t]  # b,1
-                cross_ent_list.append(cross_entropy)
+                cross_entropy_tensor = tf.stack(cross_ent_list, 1)  # b,t,1
+                xent_loss = tf.reduce_sum(cross_entropy_tensor, axis=1)  # b,1
+                xent_loss = tf.divide(xent_loss, tf.cast(cap_len, tf.float32))  # b,1
+                xent_loss = tf.reduce_mean(xent_loss, axis=0)  # 1,
+                tmp = tf.transpose(tf.reduce_sum(tf.stack(atn_ws), axis=1)-tau, perm=[1,0,2]) # t',t,b,1 -> t',b,1 -> b,t',1
+                atn_loss = tf.reduce_mean(tf.multiply(tf.reshape(tmp, shape=(batch_size,max_caption_len)), cap_mask))
+                loss = xent_loss + atn_loss
 
-        loss = 0.0
-        if phase != phases['test']:
-            cross_entropy_tensor = tf.stack(cross_ent_list, 1)  # b,t,1
-            loss = tf.reduce_sum(cross_entropy_tensor, axis=1)  # b,1
-            loss = tf.divide(loss, tf.cast(cap_len, tf.float32))  # b,1
-            loss = tf.reduce_mean(loss, axis=0)  # 1,
 
-        logits = tf.stack(logits, axis=0)  # t,b,n_vocab
-        # logits = tf.reshape(logits, (max_caption_len, batch_size, self.vocab_num))
-        logits = tf.transpose(logits, [1, 0, 2])  # b,t,n_vocab
+        with tf.variable_scope('vocab_logits'):
+            logits = tf.stack(logits, axis=0)  # t,b,n_vocab
+            # logits = tf.reshape(logits, (max_caption_len, batch_size, self.vocab_num))
+            logits = tf.transpose(logits, [1, 0, 2])  # b,t,n_vocab
 
-        summary = None
-        if phase == phases['train']:
-            summary = tf.summary.scalar('training loss', loss)
-        elif phase == phases['val']:
-            summary = tf.summary.scalar('validation loss', loss)
+        with tf.variable_scope('summary'):
+            summaries = []
+            if phase == phases['train']:
+                summaries.append(tf.summary.scalar('xent', xent_loss))
+                summaries.append(tf.summary.scalar('atn', atn_loss))
+            elif phase == phases['val']:
+                summaries.append(tf.summary.scalar('val xent', loss))
+                summaries.append(tf.summary.scalar('val atn', atn_loss))
 
-        return logits, loss, summary
+
+        return logits, loss, tf.summary.merge(summaries)
 
     @staticmethod
     def inference(logits):
@@ -493,7 +514,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-3)
     parser.add_argument('-e', '--num_epoches', type=int, default=100)
-    parser.add_argument('-b', '--batch_size', type=int, default=128)
+    parser.add_argument('-b', '--batch_size', type=int, default=1
+                        )
     parser.add_argument('-t', '--test_mode', type=int, default=0)
     parser.add_argument('-d', '--num_display_steps', type=int, default=15)
     parser.add_argument('-ns', '--num_saver_epoches', type=int, default=1)
