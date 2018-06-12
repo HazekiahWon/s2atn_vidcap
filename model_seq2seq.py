@@ -89,8 +89,8 @@ class S2VT:
                 cap_mask = tf.sequence_mask(cap_len, max_caption_len, dtype=tf.float32)
 
             if phase == phases['train']:  # add noise
-                noise = tf.random_uniform(tf.shape(feat), -0.1, 0.1, dtype=tf.float32)
-                feat = tf.add(feat,noise,name='add_noise') # TODO why noise
+                # noise = tf.random_uniform(tf.shape(feat), -0.1, 0.1, dtype=tf.float32)
+                # feat = tf.add(feat,noise,name='add_noise') # TODO why noise
 
                 # if phase == phases['train']:
                 feat = tf.nn.dropout(feat, dropout_prob)
