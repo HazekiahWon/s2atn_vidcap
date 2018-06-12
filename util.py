@@ -38,7 +38,7 @@ def dec_print_train(pred, cap_len, label, idx2word, batch_size, id_batch):
 
     pre = list(map(lambda x: idx2word[x], pred[i][0:eos_pred]))
     lab = list(map(lambda x: idx2word[x], label[i][0:eos]))
-    print('\nid: ' + str(id_batch[i]) + '\nanswer: ' + str(lab) + '\nprediction: ' + str(pre))
+    print('\nexample {}-id: {}\nanswer: {}\nprediction: {}'.format(i, id_batch[i], lab, pre))
 
 
 def dec_print_val(pred, cap_len, label, idx2word, batch_size, id_batch):

@@ -239,14 +239,24 @@ class S2VT:
             loss = 0.0
             xent_loss = 0.
             atn_loss = 0.
-            tau = 1./n_frames * max_caption_len *2 # expectation for each frame to be attended is 1/n_frames
+            tau = 1./n_frames * max_caption_len  # expectation for each frame to be attended is 1/n_frames
             if phase != phases['test']:
                 cross_entropy_tensor = tf.stack(cross_ent_list, 1)  # b,t,1
                 xent_loss = tf.reduce_sum(cross_entropy_tensor, axis=1)  # b,1
                 xent_loss = tf.divide(xent_loss, tf.cast(cap_len, tf.float32))  # b,1
                 xent_loss = tf.reduce_mean(xent_loss, axis=0)  # 1,
-                tmp = tf.transpose(tf.reduce_sum(tf.stack(atn_ws), axis=1)-tau, perm=[1,0,2]) # t',t,b,1 -> t',b,1 -> b,t',1
-                atn_loss = tf.reduce_mean(tf.multiply(tf.reshape(tmp, shape=(batch_size,max_caption_len)), cap_mask))
+                stacked_atn_ws = tf.squeeze(tf.stack(atn_ws)) # t_maxcap, t_frames, b,
+                # cap_mask : b, t_maxcap
+                expanded_mask = tf.transpose(tf.expand_dims(cap_mask, axis=-1), perm=(1,2,0))
+                masked_atn_ws = tf.multiply(stacked_atn_ws, expanded_mask) # t_maxcap,t_frames,b
+                atn_focus_each_frame = tf.reduce_sum(masked_atn_ws, axis=0) # t_frames,b
+                # require x in [0.8,1.2]*alpha
+                over = tf.nn.relu(atn_focus_each_frame-1.2*tau, ) # let those over 1.2*tau pass
+                under = tf.nn.relu(0.6*tau-atn_focus_each_frame)
+
+                avg_frame_bias = tf.reduce_sum(over+under, axis=0) / tf.cast(cap_len, tf.float32) # b,
+
+                atn_loss = tf.reduce_mean(avg_frame_bias)
                 loss = xent_loss + atn_loss
 
 
@@ -260,8 +270,10 @@ class S2VT:
             if phase == phases['train']:
                 summaries.append(tf.summary.scalar('xent', xent_loss))
                 summaries.append(tf.summary.scalar('atn', atn_loss))
+                summaries.append(tf.summary.histogram('atn_focus_each_frame', atn_focus_each_frame))
+                # summaries.append(tf.summary.histogram('valid atn', valid_atn_loss))
             elif phase == phases['val']:
-                summaries.append(tf.summary.scalar('val xent', loss))
+                summaries.append(tf.summary.scalar('val xent', xent_loss))
                 summaries.append(tf.summary.scalar('val atn', atn_loss))
 
 
@@ -364,7 +376,7 @@ def train():
             data_batch, label_batch, caption_lens_batch, id_batch = datasetTrain.next_batch_()
             samp = datasetTrain.schedule_sampling(samp_prob[epo])
 
-            if i % FLAGS.num_display_steps == 1:
+            if (i+1) % FLAGS.num_display_steps == 0:
                 # training
                 # print('model:display')
                 # run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
@@ -375,11 +387,13 @@ def train():
                                                              sampling: samp},
                                                   # options=run_options
                                                   )
+
                 summary_writer.add_summary(summ, global_step=(epo * num_steps) + i)
                 print("\n[Train. Prediction] Epoch " + str(epo) + ", step " \
                       + str(i) + "/" + str(num_steps) + "......")
                 dec_print_train(p, caption_lens_batch, label_batch,
                                 datasetTrain.idx_to_word, FLAGS.batch_size, id_batch)
+                print('============================================================')
 
             else:
                 # print('model:', data_batch.shape)
@@ -390,10 +404,11 @@ def train():
                                                        sampling: samp})
 
             epo_loss += loss
-            print('============================================================')
+
             print("Epoch " + str(epo) + ", step " + str(i) + "/" + str(num_steps) + \
                                  ", (Training Loss: " + "{:.4f}".format(loss) + \
                                  ", samp_prob: " + "{:.4f}".format(samp_prob[epo]) + ")")
+
 
         print("\n[FINISHED] Epoch " + str(epo) + \
               ", (Training Loss (per epoch): " + "{:.4f}".format(epo_loss) + \
@@ -513,9 +528,8 @@ def main(_):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-lr', '--learning_rate', type=float, default=5e-4)
-    parser.add_argument('-e', '--num_epoches', type=int, default=100)
-    parser.add_argument('-b', '--batch_size', type=int, default=1
-                        )
+    parser.add_argument('-e', '--num_epoches', type=int, default=150)
+    parser.add_argument('-b', '--batch_size', type=int, default=128)
     parser.add_argument('-t', '--test_mode', type=int, default=0)
     parser.add_argument('-d', '--num_display_steps', type=int, default=15)
     parser.add_argument('-ns', '--num_saver_epoches', type=int, default=1)
