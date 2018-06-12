@@ -206,9 +206,11 @@ class S2VT:
                             feed_in = captions[:, t - 1]  # all batches at prev time
                         else:
                             # feed_in = tf.argmax(logit_words, axis=1)  # largest word index
-                            feed_in = tf.multinomial(logit_words, num_samples=1)
+                            feed_in = tf.squeeze(tf.multinomial(logit_words, num_samples=1))
+                            # print('mm',feed_in.shape)
                     else:  # test
                         feed_in = tf.argmax(logit_words, 1)
+                        # print(feed_in.shape)
 
                 with tf.device("/cpu:0"):
                     # word embedding lookup
@@ -240,7 +242,7 @@ class S2VT:
             loss = 0.0
             xent_loss = 0.
             atn_loss = 0.
-            tau = 1./n_frames * max_caption_len  # expectation for each frame to be attended is 1/n_frames
+            tau = 1./n_frames * max_caption_len*0.5  # expectation for each frame to be attended is 1/n_frames
             if phase != phases['test']:
                 cross_entropy_tensor = tf.stack(cross_ent_list, 1)  # b,t,1
                 xent_loss = tf.reduce_sum(cross_entropy_tensor, axis=1)  # b,1
@@ -280,11 +282,15 @@ class S2VT:
 
         return logits, loss, tf.summary.merge(summaries)
 
-    @staticmethod
-    def inference(logits):
+
+    def inference(self, logits):
 
         # print('using greedy search...')
-        sentences = tf.stack([tf.multinomial(sentence, num_samples=1)for sentence in logits])
+        # logits : b,t,n_voc -> b*t,n_voc
+        shape = tf.shape(logits)[:-1]
+        unpack = tf.reshape(logits, shape=(-1, self.vocab_num))
+        sentences = tf.squeeze(tf.multinomial(unpack, num_samples=1)) # b*t,
+        sentences = tf.reshape(sentences, shape=shape)
         # dec_pred = tf.argmax(logits, axis=-1)
         return sentences #dec_pred
 
