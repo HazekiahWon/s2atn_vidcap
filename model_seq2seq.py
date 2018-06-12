@@ -205,7 +205,8 @@ class S2VT:
                         if sampling[t] is True:
                             feed_in = captions[:, t - 1]  # all batches at prev time
                         else:
-                            feed_in = tf.argmax(logit_words, axis=1)  # largest word index
+                            # feed_in = tf.argmax(logit_words, axis=1)  # largest word index
+                            feed_in = tf.multinomial(logit_words, num_samples=1)
                     else:  # test
                         feed_in = tf.argmax(logit_words, 1)
 
@@ -283,8 +284,9 @@ class S2VT:
     def inference(logits):
 
         # print('using greedy search...')
-        dec_pred = tf.argmax(logits, axis=-1)
-        return dec_pred
+        sentences = tf.stack([tf.multinomial(sentence, num_samples=1)for sentence in logits])
+        # dec_pred = tf.argmax(logits, axis=-1)
+        return sentences #dec_pred
 
     def optimize(self, loss_op):
 
